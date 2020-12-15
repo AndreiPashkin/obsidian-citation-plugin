@@ -1,4 +1,4 @@
-import { App, FileSystemAdapter, MarkdownSourceView, MarkdownView, normalizePath, Plugin, TFile } from 'obsidian';
+import { App, FileSystemAdapter, MarkdownSourceView, MarkdownView, normalizePath, Plugin, TFile, View, WorkspaceLeaf } from 'obsidian';
 // @ts-ignore
 import { watch } from 'original-fs';
 import * as path from 'path';
@@ -7,6 +7,7 @@ import { InsertCitationModal, OpenNoteModal } from './modals';
 import { CitationsPluginSettings, CitationSettingTab, IIndexable } from './settings';
 import { Entry, EntryData } from './types';
 import { formatTemplate } from './util';
+import { CitationsView } from './view';
 
 
 export default class CitationPlugin extends Plugin {
@@ -44,6 +45,23 @@ export default class CitationPlugin extends Plugin {
 
 	onload() {
 		this.loadSettings().then(() => this.init());
+
+		// Prepare Citations view
+		this.registerView("citations", this.createCitationsView);
+		this.registerEvent(this.app.workspace.on("file-menu", (menu, file, source, leaf) => {
+			console.log("menu", menu, file, source);
+			menu.addItem((mitem) => {
+				mitem.setTitle("Open citations").onClick(() => {
+					console.log("here");
+					this.app.workspace.splitLeafOrActive(leaf, "vertical").setViewState({
+						type: "citations",
+						active: true,
+						state: {file: file.path, abc: "xyz"},
+						group: leaf,
+					});
+				});
+			})
+		}));
 	}
 
 	async init() {
@@ -62,8 +80,6 @@ export default class CitationPlugin extends Plugin {
 		} else {
 			// TODO show warning?
 		}
-
-
 
 		this.addCommand({
 			id: "open-literature-note",
@@ -190,5 +206,10 @@ export default class CitationPlugin extends Plugin {
 			// console.log(this.app.metadataCache.fileToLinktext(file, this.app.vault.getRoot().path, true))
 			this.editor.replaceRange(linkText, this.editor.getCursor());
 		})
+	}
+
+	createCitationsView(leaf: WorkspaceLeaf): View {
+		console.log("create with leaf", leaf)
+		return new CitationsView(leaf, this);
 	}
 }
